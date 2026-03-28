@@ -1,0 +1,181 @@
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+
+      # ================= CORS =================
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+            exposedHeaders:
+              - Authorization
+            maxAge: 3600
+
+      routes:
+
+        # ================= SWAGGER API-DOC ROUTES =================
+        # FIX: Changed Path from exact  /xxx/v3/api-docs
+        #               to wildcard     /xxx/v3/api-docs/**
+        #
+        # WHY: Swagger UI fetches TWO sub-paths from each service:
+        #   /admin/v3/api-docs                  (the OpenAPI spec)
+        #   /admin/v3/api-docs/swagger-config   (the UI configuration)
+        # The old exact-match predicate caught the first but not the second.
+        # The second fell through to the /admin/** route which has JwtAuthFilter → 403.
+        #
+        # FIX: RewritePath regex now strips the service prefix from ANY sub-path:
+        #   /admin/v3/api-docs              → /v3/api-docs
+        #   /admin/v3/api-docs/swagger-config → /v3/api-docs/swagger-config
+
+        # AUTH
+        - id: auth-swagger-docs
+          uri: http://localhost:8081
+          predicates:
+            - Path=/auth/v3/api-docs/**
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /${segment}
+
+        - id: auth-swagger-ui
+          uri: http://localhost:8081
+          predicates:
+            - Path=/auth/swagger-ui/**
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /${segment}
+
+        # APPLICATION
+        - id: application-swagger-docs
+          uri: http://localhost:8082
+          predicates:
+            - Path=/applications/v3/api-docs/**
+          filters:
+            - RewritePath=/applications/(?<segment>.*), /${segment}
+
+        - id: application-swagger-ui
+          uri: http://localhost:8082
+          predicates:
+            - Path=/applications/swagger-ui/**
+          filters:
+            - RewritePath=/applications/(?<segment>.*), /${segment}
+
+        # DOCUMENT
+        - id: document-swagger-docs
+          uri: http://localhost:8083
+          predicates:
+            - Path=/documents/v3/api-docs/**
+          filters:
+            - RewritePath=/documents/(?<segment>.*), /${segment}
+
+        - id: document-swagger-ui
+          uri: http://localhost:8083
+          predicates:
+            - Path=/documents/swagger-ui/**
+          filters:
+            - RewritePath=/documents/(?<segment>.*), /${segment}
+
+        # ADMIN
+        - id: admin-swagger-docs
+          uri: http://localhost:8084
+          predicates:
+            - Path=/admin/v3/api-docs/**
+          filters:
+            - RewritePath=/admin/(?<segment>.*), /${segment}
+
+        - id: admin-swagger-ui
+          uri: http://localhost:8084
+          predicates:
+            - Path=/admin/swagger-ui/**
+          filters:
+            - RewritePath=/admin/(?<segment>.*), /${segment}
+
+        # NOTIFICATION
+        - id: notification-swagger-docs
+          uri: http://localhost:8085
+          predicates:
+            - Path=/notifications/v3/api-docs/**
+          filters:
+            - RewritePath=/notifications/(?<segment>.*), /${segment}
+
+        - id: notification-swagger-ui
+          uri: http://localhost:8085
+          predicates:
+            - Path=/notifications/swagger-ui/**
+          filters:
+            - RewritePath=/notifications/(?<segment>.*), /${segment}
+
+        # ================= NORMAL API ROUTES =================
+        # IMPORTANT: These must come AFTER the swagger routes above.
+        # Spring Cloud Gateway matches in order — first match wins.
+        # If these appeared first, /admin/v3/api-docs/** would hit JwtAuthFilter.
+
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/auth/**
+          filters:
+            - JwtAuthFilter
+
+        - id: application-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/applications/**
+          filters:
+            - JwtAuthFilter
+
+        - id: document-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/documents/**
+          filters:
+            - JwtAuthFilter
+
+        - id: admin-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/admin/**
+          filters:
+            - JwtAuthFilter
+
+        - id: notification-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/notifications/**
+          filters:
+            - JwtAuthFilter
+
+
+# ================= SWAGGER UI AGGREGATOR =================
+springdoc:
+  swagger-ui:
+    disable-swagger-default-url: true
+    urls:
+      - name: auth-service
+        url: /auth/v3/api-docs
+      - name: application-service
+        url: /applications/v3/api-docs
+      - name: document-service
+        url: /documents/v3/api-docs
+      - name: admin-service
+        url: /admin/v3/api-docs
+      - name: notification-service
+        url: /notifications/v3/api-docs
+
+
+jwt:
+  secret: finflow-super-secret-key-must-be-at-least-256-bits-long-for-hs256
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
