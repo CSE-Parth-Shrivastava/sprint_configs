@@ -22,6 +22,12 @@ spring:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
       mail.smtp.starttls.required: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
 
 # FIX: springdoc was incorrectly nested inside spring: block in original — moved to top level
 springdoc:
